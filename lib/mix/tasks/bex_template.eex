@@ -1,0 +1,37 @@
+defmodule <%= inspect(@behaviour_module) %> do
+  @moduledoc false
+
+  _ = """
+  Behaviour wrapping <%= inspect(@module) %>
+  """
+
+  <%= for {fun, arity} <- @funs do %>
+    @doc false
+    @callback <%= fun %>(<%= 1..arity |> Enum.map(&"arg_#{&1} :: any()") |> Enum.join(", ") %>) :: any()
+  <% end %>
+
+  # default implementation
+  @actual_impl Application.compile_env(:bex, <%= inspect(@module) %>, <%= inspect(@behaviour_impl_module)%>)
+
+  <%= for {fun, arity} <- @funs do %>
+    @doc false
+    defdelegate <%= fun %>(<%= 1..arity |> Enum.map(&"arg_#{&1}") |> Enum.join(", ") %>), to: @actual_impl
+  <% end %>
+end
+
+defmodule <%= inspect(@behaviour_impl_module) %> do
+  @moduledoc false
+
+  _ = """
+  Default implementation for the behaviour wrapping <%= inspect(@module) %>
+  """
+
+  @behaviour <%= inspect(@behaviour_module) %>
+
+  <%= for {fun, arity} <- @funs do %>
+    @impl <%= inspect(@behaviour_module) %>
+    def <%= fun %>(<%= 1..arity |> Enum.map(&"arg_#{&1}") |> Enum.join(", ") %>) do
+      <%= inspect(@module) %>.<%= fun %>(<%= 1..arity |> Enum.map(&"arg_#{&1}") |> Enum.join(", ") %>)
+    end
+  <% end %>
+end
