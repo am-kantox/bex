@@ -81,7 +81,7 @@ defmodule Mix.Tasks.Bex.Generate do
       behaviour_module = Module.concat([Bex.Behaviours, mod])
       behaviour_impl_module = Module.concat([Bex.Behaviours.Impls, mod])
 
-      files_to_examine =
+      locations =
         Mix.Project.config()
         |> Keyword.get(:elixirc_paths, ["lib"])
         |> Enum.map(&Path.wildcard(&1 <> "/**/*.ex"))
@@ -103,10 +103,10 @@ defmodule Mix.Tasks.Bex.Generate do
       Mix.shell().info([
         [:bright, :blue, "✓ #{inspect(mod)}", :reset],
         " has been created in ",
-        [:blue, "* #{target_file}", :reset]
+        [:blue, "#{target_file}", :reset]
       ])
 
-      for {file, meta, ast, new_ast} <- files_to_examine do
+      for {file, _file_ast, locations} <- locations, {meta, ast, new_ast} <- locations do
         line = Keyword.get(meta, :line, "??")
 
         ast =
@@ -148,7 +148,7 @@ defmodule Mix.Tasks.Bex.Generate do
     alias = mod |> Module.split() |> Enum.map(&String.to_atom/1)
     bex_alias = [:Bex, :Behaviours | alias]
 
-    {_ast, acc} =
+    {ast, acc} =
       Macro.postwalk(term, %{calls: [], aliases: %{alias => alias}}, fn
         {:alias, _meta, [{:__aliases__, _mods_meta, mods}]} = ast, acc ->
           {ast, put_in(acc, [:aliases, [List.last(mods)]], mods)}
@@ -174,9 +174,9 @@ defmodule Mix.Tasks.Bex.Generate do
                 [
                   {:__aliases__, meta_aliases, bex_alias},
                   fun
-                ]}, meta, args}
+                ]}, meta, args ++ [{:__ENV__, [], nil}]}
 
-            {ast, %{acc | calls: [{file, meta_call, ast, new_ast} | acc.calls]}}
+            {new_ast, %{acc | calls: [{meta_call, ast, new_ast} | acc.calls]}}
           else
             {ast, acc}
           end
@@ -185,7 +185,10 @@ defmodule Mix.Tasks.Bex.Generate do
           {ast, acc}
       end)
 
-    acc.calls
+    case acc.calls do
+      [] -> []
+      list -> [{file, ast, list}]
+    end
   end
 
   defp report_error(:required) do

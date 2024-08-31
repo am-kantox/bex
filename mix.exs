@@ -21,7 +21,7 @@ defmodule Bex.MixProject do
       docs: docs(),
       dialyzer: [
         plt_file: {:no_warn, ".dialyzer/plts/dialyzer.plt"},
-        plt_add_apps: [],
+        plt_add_apps: [:telemetry],
         list_unused_filters: true,
         ignore_warnings: ".dialyzer/ignore.exs"
       ]
@@ -39,6 +39,7 @@ defmodule Bex.MixProject do
   defp deps do
     [
       {:sourceror, "~> 1.6"},
+      {:telemetry, "~> 1.3"},
       # dev / test
       {:dialyxir, "~> 1.0", only: [:dev, :test, :ci], runtime: false},
       {:credo, "~> 1.0", only: [:dev, :ci], runtime: false},

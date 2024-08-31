@@ -1,21 +1,27 @@
 # Bex
 
-**TODO: Add description**
+**The set of mix tasks to help dealing with behaviours and mocks**
 
 ## Installation
-
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `bex` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:bex, "~> 0.1.0"}
+    {:bex, "~> 0.1", runtime: false}
   ]
 end
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/bex>.
+## Usage
+
+```elixir
+mix bex.generate --function Process.send_after/4
+```
+
+The above will generate the behaviour module `Bex.Behaviours.Process` and its default
+implementation which should be called instead of a direct call to the original function.
+
+Also `Mox` scaffold and `telemetry` call will be generated.
+
+## [Documentation](https://hexdocs.pm/bex)
 
