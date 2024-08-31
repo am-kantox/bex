@@ -1,5 +1,6 @@
 defmodule Mix.Tasks.Bex.Generate do
   @shortdoc "Generates the behaviour and the default implementation scaffold for the given module/function"
+
   @moduledoc """
   Mix task to generate the `Bex` wrapping behaviour scaffold.
 
@@ -16,8 +17,12 @@ defmodule Mix.Tasks.Bex.Generate do
     or the function to convert to behaviour implementation
   - **`--dir: :string`** __[optional, default: `lib/bex`]__ the target directory for generated
     modules
-  - **`--patch`** __[optional, default: `true`] if `false`, no attempt to patch found occurences
+  - **`--patch`** __[optional, default: `true`]__ if `false`, no attempt to patch found occurences
     of calls to the behavioured function(s) would be made
+  - **`--backup`** __[optional, default: `false`]__ if `true`, the file will be backed up with `.bex`
+    extension before patching
+  - **`--test`** __[optional, default: `true`]__ if `false`, tests for patched calls will not be generated
+    (it has no effect with `--no-patch`)
 
   ### Example
 
@@ -27,6 +32,7 @@ defmodule Mix.Tasks.Bex.Generate do
   """
 
   # credo:disable-for-this-file Credo.Check.Refactor.CyclomaticComplexity
+  # credo:disable-for-this-file Credo.Check.Refactor.Nesting
 
   use Mix.Task
 
@@ -44,6 +50,8 @@ defmodule Mix.Tasks.Bex.Generate do
           module: :string,
           function: [:string, :keep],
           patch: :boolean,
+          backup: :boolean,
+          test: :boolean,
           dir: :string
         ]
       )
@@ -114,7 +122,7 @@ defmodule Mix.Tasks.Bex.Generate do
 
       for {file, file_ast, locations} <- locations do
         funs_to_test =
-          for {meta, ast, new_ast, {m, f, a}} <- locations do
+          for {meta, ast, new_ast, {fun, arity, {m, f, a}}} <- locations do
             line = Keyword.get(meta, :line, "??")
 
             Mix.shell().info([
@@ -129,12 +137,13 @@ defmodule Mix.Tasks.Bex.Generate do
               [:green, Bex.io_diff(new_ast, :add), :reset]
             ])
 
-            {m, f, a}
+            {fun, arity, {m, f, a}}
           end
 
         if Keyword.get(opts, :patch, true) and
              Mix.shell().yes?("Apply changes to ‹" <> file <> "›?") do
-          with {:error, error} <- File.cp(file, file <> ".bex") do
+          with true <- Keyword.get(opts, :backup, false),
+               {:error, error} <- File.cp(file, file <> ".bex") do
             Mix.shell().error([
               [:bright, :red, "✗ Error ", :reset],
               [:bright, :yellow, inspect(error), :reset],
@@ -151,29 +160,33 @@ defmodule Mix.Tasks.Bex.Generate do
                 " amended successfully"
               ])
 
-              target_dir = Path.join(@bex_test_default_path, inner_dir)
-              File.mkdir_p!(target_dir)
-              target_file = Path.join([target_dir, file_base <> "_test.exs"])
-              test_module = Module.concat([behaviour_module, Mox, Test])
+              if Keyword.get(opts, :test, true) do
+                target_dir = Path.join(@bex_test_default_path, inner_dir)
+                File.mkdir_p!(target_dir)
+                target_file = Path.join([target_dir, file_base <> "_test.exs"])
+                test_module = Module.concat([behaviour_module, Mox, Test])
 
-              Mix.Generator.copy_template(
-                Path.expand("bex_test_template.eex", __DIR__),
-                target_file,
-                mox_module: Module.concat(behaviour_module, Mox),
-                test_module: test_module,
-                funs: funs_to_test
-              )
+                Mix.Generator.copy_template(
+                  Path.expand("bex_test_template.eex", __DIR__),
+                  target_file,
+                  mox_module: Module.concat(behaviour_module, Mox),
+                  test_module: test_module,
+                  funs: funs_to_test
+                )
 
-              File.write!(target_file, Code.format_file!(target_file))
+                File.write!(target_file, Code.format_file!(target_file))
 
-              Mix.shell().info([
-                [:bright, :blue, "✓ #{inspect(test_module)}", :reset],
-                " has been created in ",
-                [:blue, "#{target_file}", :reset]
-              ])
+                Mix.shell().info([
+                  [:bright, :blue, "✓ #{inspect(test_module)}", :reset],
+                  " has been created in ",
+                  [:blue, "#{target_file}", :reset]
+                ])
+              else
+                Mix.shell().info(["✓ Test generation skipped due to `no-test` argument"])
+              end
 
             {:error, error} ->
-              _ = File.rm(file <> ".bex")
+              with true <- Keyword.get(opts, :backup, false), do: _ = File.rm(file <> ".bex")
 
               Mix.shell().error([
                 [:bright, :red, "✗ Error ", :reset],
@@ -236,7 +249,8 @@ defmodule Mix.Tasks.Bex.Generate do
                   fun
                 ]}, meta, args ++ [{:__ENV__, [], nil}]}
 
-            {new_ast, %{acc | calls: [{meta_call, ast, new_ast, acc.def} | acc.calls]}}
+            {new_ast,
+             %{acc | calls: [{meta_call, ast, new_ast, {fun, length(args), acc.def}} | acc.calls]}}
           else
             {ast, acc}
           end

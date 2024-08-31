@@ -3,17 +3,17 @@ defmodule <%= inspect(@test_module) %> do
 
   import Mox
   
-  <%= for {mod, fun, args} <- @funs do %>
+  <%= for {mox_fun, mox_arity, {mod, fun, args}} <- @funs do %>
     test "<%= inspect(mod) %>.<%= fun %>/<%= Enum.count(args) %>" do
       test_process = self()
 
       <%= inspect(@mox_module) %>
-      |> expect(:<%= fun %>, 1, fn <%= Enum.map_join(args, ", ", & "_#{&1}") %> ->
-        send(test_process, {:<%= fun %>, <%= Enum.count(args) %>})
+      |> expect(:<%= mox_fun %>, 1, fn <%= Enum.map_join(1..mox_arity, ", ", & "_arg_#{&1}") %> ->
+        send(test_process, {:<%= fun %>, <%= mox_arity %>})
       end)
 
       <%= inspect(mod) %>.<%= fun %>(<%= Enum.map_join(args, ", ", fn _ -> "nil" end) %>)
-      assert_receive({:<%= fun %>, <%= Enum.count(args) %>})
+      assert_receive({:<%= fun %>, <%= mox_arity %>})
     end
   <% end %>
 end

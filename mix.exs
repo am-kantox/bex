@@ -41,9 +41,10 @@ defmodule Bex.MixProject do
       {:sourceror, "~> 1.6"},
       {:telemetry, "~> 1.3"},
       # dev / test
+      {:mox, "~> 1.0", only: [:test]},
       {:dialyxir, "~> 1.0", only: [:dev, :test, :ci], runtime: false},
       {:credo, "~> 1.0", only: [:dev, :ci], runtime: false},
-      {:ex_doc, "~> 0.11", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.11", only: [:dev], runtime: false}
     ]
   end
 
