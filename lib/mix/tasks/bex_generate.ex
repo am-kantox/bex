@@ -31,6 +31,7 @@ defmodule Mix.Tasks.Bex.Generate do
   use Mix.Task
 
   @bex_default_path "lib/bex"
+  @bex_test_default_path "test/bex"
 
   @impl Mix.Task
   @doc false
@@ -112,19 +113,24 @@ defmodule Mix.Tasks.Bex.Generate do
       ])
 
       for {file, file_ast, locations} <- locations do
-        for {meta, ast, new_ast} <- locations do
-          line = Keyword.get(meta, :line, "??")
+        funs_to_test =
+          for {meta, ast, new_ast, {m, f, a}} <- locations do
+            line = Keyword.get(meta, :line, "??")
 
-          Mix.shell().info([
-            "✓ Suggested change: ",
-            [:bright, :blue, file, :reset],
-            [:blue, ":#{line}", :reset],
-            "\n",
-            [:red, Bex.io_diff(ast, :delete), :reset],
-            "\n",
-            [:green, Bex.io_diff(new_ast, :add), :reset]
-          ])
-        end
+            Mix.shell().info([
+              "✓ Suggested change: ",
+              [:bright, :blue, file, :reset],
+              [:blue, ":#{line}", :reset],
+              " in ",
+              [:bright, :blue, inspect(m) <> ~s|.#{f}(#{Enum.join(a, ", ")})|, :reset],
+              "\n",
+              [:red, Bex.io_diff(ast, :delete), :reset],
+              "\n",
+              [:green, Bex.io_diff(new_ast, :add), :reset]
+            ])
+
+            {m, f, a}
+          end
 
         if Keyword.get(opts, :patch, true) and
              Mix.shell().yes?("Apply changes to ‹" <> file <> "›?") do
@@ -143,6 +149,27 @@ defmodule Mix.Tasks.Bex.Generate do
                 "✓ File ",
                 [:bright, :blue, file, :reset],
                 " amended successfully"
+              ])
+
+              target_dir = Path.join(@bex_test_default_path, inner_dir)
+              File.mkdir_p!(target_dir)
+              target_file = Path.join([target_dir, file_base <> "_test.exs"])
+              test_module = Module.concat([behaviour_module, Mox, Test])
+
+              Mix.Generator.copy_template(
+                Path.expand("bex_test_template.eex", __DIR__),
+                target_file,
+                mox_module: Module.concat(behaviour_module, Mox),
+                test_module: test_module,
+                funs: funs_to_test
+              )
+
+              File.write!(target_file, Code.format_file!(target_file))
+
+              Mix.shell().info([
+                [:bright, :blue, "✓ #{inspect(test_module)}", :reset],
+                " has been created in ",
+                [:blue, "#{target_file}", :reset]
               ])
 
             {:error, error} ->
@@ -175,7 +202,7 @@ defmodule Mix.Tasks.Bex.Generate do
     bex_alias = [:Bex, :Behaviours | alias]
 
     {ast, acc} =
-      Macro.postwalk(term, %{calls: [], aliases: %{alias => alias}}, fn
+      Macro.prewalk(term, %{calls: [], aliases: %{alias => alias}, module: nil, def: nil}, fn
         {:alias, _meta, [{:__aliases__, _mods_meta, mods}]} = ast, acc ->
           {ast, put_in(acc, [:aliases, [List.last(mods)]], mods)}
 
@@ -186,6 +213,13 @@ defmodule Mix.Tasks.Bex.Generate do
          ]} = ast,
         acc ->
           {ast, put_in(acc, [:aliases, aliases], mods)}
+
+        {:defmodule, _meta, [{:__aliases__, _, aliases} | _]} = ast, acc ->
+          {ast, Map.put(acc, :module, Module.concat(aliases))}
+
+        {:def, _meta, [{name, _, args} | _]} = ast, acc ->
+          args = Enum.map(args || [], &elem(&1, 0))
+          {ast, Map.put(acc, :def, {acc.module, name, args})}
 
         {{:., meta_call,
           [
@@ -202,7 +236,7 @@ defmodule Mix.Tasks.Bex.Generate do
                   fun
                 ]}, meta, args ++ [{:__ENV__, [], nil}]}
 
-            {new_ast, %{acc | calls: [{meta_call, ast, new_ast} | acc.calls]}}
+            {new_ast, %{acc | calls: [{meta_call, ast, new_ast, acc.def} | acc.calls]}}
           else
             {ast, acc}
           end
@@ -213,7 +247,7 @@ defmodule Mix.Tasks.Bex.Generate do
 
     case acc.calls do
       [] -> []
-      list -> [{file, ast, list}]
+      list -> [{file, ast, Enum.reverse(list)}]
     end
   end
 

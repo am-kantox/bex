@@ -15,8 +15,8 @@ defmodule Bex.Test.Process do
     Supervisor.start_link([])
   end
 
-  def schedule do
-    Process.send_after(self(), :schedule, 1_000, [])
+  def schedule(interval) do
+    Process.send_after(self(), :schedule, interval, [])
   end
 
   def schedule_with_fq_alias do
