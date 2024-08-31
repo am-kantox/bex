@@ -16,13 +16,17 @@ defmodule Mix.Tasks.Bex.Generate do
     or the function to convert to behaviour implementation
   - **`--dir: :string`** __[optional, default: `lib/bex`]__ the target directory for generated
     modules
+  - **`--patch`** __[optional, default: `true`] if `false`, no attempt to patch found occurences
+    of calls to the behavioured function(s) would be made
 
   ### Example
 
   ```sh
-  mix bex.generate --function Process.send_after/4
+  mix bex.generate --function Process.send_after/4 --no-patch
   ```
   """
+
+  # credo:disable-for-this-file Credo.Check.Refactor.CyclomaticComplexity
 
   use Mix.Task
 
@@ -38,6 +42,7 @@ defmodule Mix.Tasks.Bex.Generate do
         strict: [
           module: :string,
           function: [:string, :keep],
+          patch: :boolean,
           dir: :string
         ]
       )
@@ -106,30 +111,51 @@ defmodule Mix.Tasks.Bex.Generate do
         [:blue, "#{target_file}", :reset]
       ])
 
-      for {file, _file_ast, locations} <- locations, {meta, ast, new_ast} <- locations do
-        line = Keyword.get(meta, :line, "??")
+      for {file, file_ast, locations} <- locations do
+        for {meta, ast, new_ast} <- locations do
+          line = Keyword.get(meta, :line, "??")
 
-        ast =
-          ast
-          |> Sourceror.to_string()
-          |> String.split("\n")
-          |> Enum.map_join("\n", &("- " <> &1))
+          Mix.shell().info([
+            "✓ Suggested change: ",
+            [:bright, :blue, file, :reset],
+            [:blue, ":#{line}", :reset],
+            "\n",
+            [:red, Bex.io_diff(ast, :delete), :reset],
+            "\n",
+            [:green, Bex.io_diff(new_ast, :add), :reset]
+          ])
+        end
 
-        new_ast =
-          new_ast
-          |> Sourceror.to_string()
-          |> String.split("\n")
-          |> Enum.map_join("\n", &("+ " <> &1))
+        if Keyword.get(opts, :patch, true) and
+             Mix.shell().yes?("Apply changes to ‹" <> file <> "›?") do
+          with {:error, error} <- File.cp(file, file <> ".bex") do
+            Mix.shell().error([
+              [:bright, :red, "✗ Error ", :reset],
+              [:bright, :yellow, inspect(error), :reset],
+              [:bright, :red, " trying to create a backup copy ", :reset],
+              [:bright, :blue, file <> ".bex", :reset]
+            ])
+          end
 
-        Mix.shell().info([
-          "✓ Suggested change: ",
-          [:bright, :blue, file, :reset],
-          [:blue, ":#{line}", :reset],
-          "\n",
-          [:red, ast, :reset],
-          "\n",
-          [:green, new_ast, :reset]
-        ])
+          case File.write(file, Sourceror.to_string(file_ast)) do
+            :ok ->
+              Mix.shell().info([
+                "✓ File ",
+                [:bright, :blue, file, :reset],
+                " amended successfully"
+              ])
+
+            {:error, error} ->
+              _ = File.rm(file <> ".bex")
+
+              Mix.shell().error([
+                [:bright, :red, "✗ Error ", :reset],
+                [:bright, :yellow, inspect(error), :reset],
+                [:bright, :red, " amending ", :reset],
+                [:bright, :blue, file, :reset]
+              ])
+          end
+        end
       end
     end
   end

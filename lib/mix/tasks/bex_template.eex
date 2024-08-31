@@ -59,3 +59,16 @@ defmodule <%= inspect(@behaviour_impl_module) %> do
     end
   <% end %>
 end
+
+case {Code.ensure_compiled(Mox), Mix.env()} do
+  {{:module, Mox}, :test} ->
+    <%= inspect(@behaviour_module) %>
+    |> Module.concat(Mox)
+    |> Mox.defmock(for: <%= inspect(@behaviour_module) %>)
+
+  {_, :test} ->
+    IO.warn("Please add `mox` to deps in `test` env")
+
+  _ ->
+    :ok
+end

@@ -48,4 +48,24 @@ defmodule Bex do
 
   def telemetry_measurements_base(additional_measurements) when is_list(additional_measurements),
     do: [] |> telemetry_measurements_base() |> Map.merge(Map.new(additional_measurements))
+
+  @doc """
+  IO formatter for diffs
+  """
+  @spec io_diff(ast :: Macro.t() | String.t(), leader :: :delete | :add | String.t()) ::
+          String.t()
+  def io_diff(ast, :delete), do: io_diff(ast, "-")
+  def io_diff(ast, :add), do: io_diff(ast, "+")
+
+  def io_diff(ast, leader) when is_binary(ast) do
+    ast
+    |> String.split("\n")
+    |> Enum.map_join("\n", &(leader <> " " <> &1))
+  end
+
+  def io_diff(ast, leader) do
+    ast
+    |> Sourceror.to_string()
+    |> io_diff(leader)
+  end
 end
