@@ -181,6 +181,9 @@ defmodule Mix.Tasks.Bex.Generate do
                   " has been created in ",
                   [:blue, "#{target_file}", :reset]
                 ])
+
+                if Mix.shell().yes?("Patch ‹config/config.exs›?"),
+                  do: Mix.Task.run("bex.config")
               else
                 Mix.shell().info(["✓ Test generation skipped due to `no-test` argument"])
               end

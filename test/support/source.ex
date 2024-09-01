@@ -7,10 +7,6 @@ defmodule Bex.Test.Process do
   alias Process, as: P2
   alias Task.Supervisor
 
-  def bex_direct_call do
-    Bex.Behaviours.Process.send_after(self(), :schedule, 1_000, [], __ENV__)
-  end
-
   def schedule_without_as do
     Supervisor.start_link([])
   end

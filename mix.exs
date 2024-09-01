@@ -21,7 +21,7 @@ defmodule Bex.MixProject do
       docs: docs(),
       dialyzer: [
         plt_file: {:no_warn, ".dialyzer/plts/dialyzer.plt"},
-        plt_add_apps: [:telemetry],
+        plt_add_apps: [:mix, :telemetry],
         list_unused_filters: true,
         ignore_warnings: ".dialyzer/ignore.exs"
       ]
