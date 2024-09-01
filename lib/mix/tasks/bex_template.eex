@@ -11,7 +11,8 @@ defmodule <%= inspect(@behaviour_module) %> do
   <% end %>
 
   # default implementation
-  @actual_impl Application.compile_env(:bex, <%= inspect(@module) %>, <%= inspect(@behaviour_impl_module)%>)
+  @actual_impls Application.compile_env(:bex, :impls, %{})
+  @actual_impl Map.get(@actual_impls, <%= inspect(@module) %>, <%= inspect(@behaviour_impl_module)%>)
 
   <%= for {fun, arity} <- @funs do %>
     @doc false

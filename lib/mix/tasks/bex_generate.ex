@@ -13,15 +13,15 @@ defmodule Mix.Tasks.Bex.Generate do
 
   ### Allowed arguments
 
-  - **`--module: :string`** _or_ **`--function: :string`** __[mandatory]__ the name of the module
+  - **`--module: :string`** _or_ **`--function: :string`** _[mandatory]_ the name of the module
     or the function to convert to behaviour implementation
-  - **`--dir: :string`** __[optional, default: `lib/bex`]__ the target directory for generated
+  - **`--dir: :string`** _[optional, default: `lib/bex`]_ the target directory for generated
     modules
-  - **`--patch`** __[optional, default: `true`]__ if `false`, no attempt to patch found occurences
+  - **`--patch`** _[optional, default: `true`]_ if `false`, no attempt to patch found occurences
     of calls to the behavioured function(s) would be made
-  - **`--backup`** __[optional, default: `false`]__ if `true`, the file will be backed up with `.bex`
+  - **`--backup`** _[optional, default: `false`]_ if `true`, the file will be backed up with `.bex`
     extension before patching
-  - **`--test`** __[optional, default: `true`]__ if `false`, tests for patched calls will not be generated
+  - **`--test`** _[optional, default: `true`]_ if `false`, tests for patched calls will not be generated
     (it has no effect with `--no-patch`)
 
   ### Example
