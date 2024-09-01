@@ -83,7 +83,7 @@ defmodule Mix.Tasks.Bex.Config do
         |> Sourceror.to_string()
       else
         with true <- bex_impls_ast != [],
-             do: Enum.join(["import Config", "", Sourceror.to_string(bex_impls_ast), ""], "\n")
+             do: Enum.join(["import Config", "", Sourceror.to_string(bex_impls_ast)], "\n")
       end
 
     if old_config_content != config_content do

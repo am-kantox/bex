@@ -2,7 +2,7 @@ defmodule Bex.MixProject do
   use Mix.Project
 
   @app :bex
-  @version "0.1.0"
+  @version "0.2.0"
 
   def project do
     [
@@ -80,7 +80,7 @@ defmodule Bex.MixProject do
 
   defp docs do
     [
-      main: "Bex",
+      main: "readme",
       source_ref: "v#{@version}",
       canonical: "http://hexdocs.pm/#{@app}",
       logo: "stuff/img/#{@app}-48x48.png",
