@@ -5,33 +5,32 @@ defmodule <%= inspect(@behaviour_module) %> do
   Behaviour wrapping <%= inspect(@module) %>
   """
 
-  <%= for {fun, arity} <- @funs do %>
+  <%= for {fun, _arity, args} <- @funs do %>
     @doc false
-    @callback <%= fun %>(<%= 1..arity |> Enum.map(&"arg_#{&1} :: any()") |> Enum.join(", ") %>) :: any()
+    @callback <%= fun %>(<%= args |> Enum.map(&"#{&1} :: any()") |> Enum.join(", ") %>) :: any()
   <% end %>
 
   # default implementation
   @actual_impls Application.compile_env(:bex, :impls, %{})
   @actual_impl Map.get(@actual_impls, <%= inspect(@module) %>, <%= inspect(@behaviour_impl_module)%>)
 
-  <%= for {fun, arity} <- @funs do %>
+  <%= for {fun, _arity, args} <- @funs do %>
     @doc false
-    defdelegate <%= fun %>(<%= 1..arity |> Enum.map(&"arg_#{&1}") |> Enum.join(", ") %>), to: @actual_impl
+    defdelegate <%= fun %>(<%= Enum.join(args, ", ") %>), to: @actual_impl
 
     @doc false
-    def <%= fun %>(<%= 1..arity |> Enum.map(&"arg_#{&1}") |> Enum.join(", ") %>, %Macro.Env{} = env) do
+    def <%= fun %>(<%= Enum.join(args, ", ") %>, %Macro.Env{} = env) do
       event_prefix = Bex.telemetry_event_base(env)
 
       :telemetry.execute(
         event_prefix ++ [:start],
         Bex.telemetry_measurements_base(%{}),
         %{
-          <%= 1..arity |> Enum.map(&"arg_#{&1}: arg_#{&1}") |> Enum.join(",\n") %>
+          <%= args |> Enum.map(&"#{&1}: #{&1}") |> Enum.join(",\n") %>
         }
       )
 
-      result =
-        <%= fun %>(<%= 1..arity |> Enum.map(&"arg_#{&1}") |> Enum.join(", ") %>)
+      result = <%= fun %>(<%= Enum.join(args, ", ") %>)
 
       :telemetry.execute(
         event_prefix ++ [:stop],
@@ -53,10 +52,10 @@ defmodule <%= inspect(@behaviour_impl_module) %> do
 
   @behaviour <%= inspect(@behaviour_module) %>
 
-  <%= for {fun, arity} <- @funs do %>
+  <%= for {fun, _arity, args} <- @funs do %>
     @impl <%= inspect(@behaviour_module) %>
-    def <%= fun %>(<%= 1..arity |> Enum.map(&"arg_#{&1}") |> Enum.join(", ") %>) do
-      <%= inspect(@module) %>.<%= fun %>(<%= 1..arity |> Enum.map(&"arg_#{&1}") |> Enum.join(", ") %>)
+    def <%= fun %>(<%= Enum.join(args, ", ") %>) do
+      <%= inspect(@module) %>.<%= fun %>(<%= Enum.join(args, ", ") %>)
     end
   <% end %>
 end
