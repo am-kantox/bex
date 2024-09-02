@@ -87,6 +87,28 @@ defmodule Mix.Tasks.Bex.Generate do
       end
 
     with [{_fun, _arity} | _] <- funs do
+      {:docs_v1, _anno, _beam_lang, _format, _mod_doc, _metadata, docs} = Code.fetch_docs(mod)
+
+      funs_with_args =
+        for {fun, arity} <- funs do
+          args =
+            docs
+            |> Enum.find(&match?({{:function, ^fun, ^arity}, _anno, _signature, _docs, %{}}, &1))
+            |> case do
+              {{:function, ^fun, ^arity}, _anno, [code], _docs, %{}} when is_binary(code) ->
+                [[args]] = Regex.scan(~r/^#{fun}\(([^\)]+)\)$/, code, capture: :all_but_first)
+
+                args
+                |> String.split(",")
+                |> Enum.map(&(&1 |> String.trim() |> String.split() |> hd()))
+
+              _ ->
+                Enum.map(1..arity, &"arg_#{&1}")
+            end
+
+          {fun, arity, args}
+        end
+
       {inner_dir, [file_base]} = mod |> Macro.underscore() |> Path.split() |> Enum.split(-1)
       target_dir = Path.join(Keyword.get(opts, :dir, @bex_default_path), inner_dir)
       File.mkdir_p!(target_dir)
@@ -109,7 +131,7 @@ defmodule Mix.Tasks.Bex.Generate do
         behaviour_module: behaviour_module,
         behaviour_impl_module: behaviour_impl_module,
         module: mod,
-        funs: funs
+        funs: funs_with_args
       )
 
       File.write!(target_file, Code.format_file!(target_file))
