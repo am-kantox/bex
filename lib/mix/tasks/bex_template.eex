@@ -5,16 +5,16 @@ defmodule <%= inspect(@behaviour_module) %> do
   Behaviour wrapping <%= inspect(@module) %>
   """
 
-  <%= for {fun, _arity, args} <- @funs do %>
+  <%= for {_fun, _arity, _args, spec} <- @funs do %>
     @doc false
-    @callback <%= fun %>(<%= args |> Enum.map(&"#{&1} :: any()") |> Enum.join(", ") %>) :: any()
+    @callback <%= spec %>
   <% end %>
 
   # default implementation
   @actual_impls Application.compile_env(:bex, :impls, %{})
   @actual_impl Map.get(@actual_impls, <%= inspect(@module) %>, <%= inspect(@behaviour_impl_module)%>)
 
-  <%= for {fun, _arity, args} <- @funs do %>
+  <%= for {fun, _arity, args, _spec} <- @funs do %>
     @doc false
     defdelegate <%= fun %>(<%= Enum.join(args, ", ") %>), to: @actual_impl
 
@@ -52,7 +52,7 @@ defmodule <%= inspect(@behaviour_impl_module) %> do
 
   @behaviour <%= inspect(@behaviour_module) %>
 
-  <%= for {fun, _arity, args} <- @funs do %>
+  <%= for {fun, _arity, args, _spec} <- @funs do %>
     @impl <%= inspect(@behaviour_module) %>
     def <%= fun %>(<%= Enum.join(args, ", ") %>) do
       <%= inspect(@module) %>.<%= fun %>(<%= Enum.join(args, ", ") %>)

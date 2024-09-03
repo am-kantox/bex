@@ -2,13 +2,13 @@ defmodule Bex.MixProject do
   use Mix.Project
 
   @app :bex
-  @version "0.3.0"
+  @version "0.4.0"
 
   def project do
     [
       app: @app,
       version: @version,
-      elixir: "~> 1.12",
+      elixir: "~> 1.13",
       elixirc_paths: elixirc_paths(Mix.env()),
       compilers: compilers(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -21,7 +21,7 @@ defmodule Bex.MixProject do
       docs: docs(),
       dialyzer: [
         plt_file: {:no_warn, ".dialyzer/plts/dialyzer.plt"},
-        plt_add_apps: [:mix, :telemetry],
+        plt_add_apps: [:mix, :telemetry, :dialyzer],
         list_unused_filters: true,
         ignore_warnings: ".dialyzer/ignore.exs"
       ]

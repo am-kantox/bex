@@ -95,8 +95,14 @@ defmodule Mix.Tasks.Bex.Generate do
             docs
             |> Enum.find(&match?({{:function, ^fun, ^arity}, _anno, _signature, _docs, %{}}, &1))
             |> case do
-              {{:function, ^fun, ^arity}, _anno, [code], _docs, %{}} when is_binary(code) ->
-                [[args]] = Regex.scan(~r/^#{fun}\(([^\)]+)\)$/, code, capture: :all_but_first)
+              {{:function, ^fun, ^arity}, _anno, [code | _] = all_code, _docs, %{}}
+              when is_binary(code) ->
+                [[args]] =
+                  Regex.scan(
+                    ~r/^#{fun}\(([^\)]+)\)$/,
+                    Enum.join(all_code, " "),
+                    capture: :all_but_first
+                  )
 
                 args
                 |> String.split(",")
@@ -106,7 +112,16 @@ defmodule Mix.Tasks.Bex.Generate do
                 Enum.map(1..arity, &"arg_#{&1}")
             end
 
-          {fun, arity, args}
+          spec =
+            case Bex.fetch_spec(mod, fun, arity) do
+              {:ok, spec} ->
+                spec
+
+              {:error, _} ->
+                ~s|#{fun}(#{Enum.map_join(args, ", ", &"#{&1} :: any()")}) :: any()|
+            end
+
+          {fun, arity, args, spec}
         end
 
       {inner_dir, [file_base]} = mod |> Macro.underscore() |> Path.split() |> Enum.split(-1)

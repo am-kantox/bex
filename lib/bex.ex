@@ -87,4 +87,38 @@ defmodule Bex do
     |> Sourceror.to_string()
     |> io_diff(leader)
   end
+
+  @doc """
+  Fetches the spec from BEAM file generated for a module
+
+  ## Example
+
+      iex> Bex.fetch_spec Process, :send_after, 4
+      {:ok, "send_after(pid() | atom(), term(), non_neg_integer(), [option]) :: reference() when option: var"}
+  """
+  @spec fetch_spec(module(), atom(), arity()) :: {:ok, String.t()} | {:error, any()}
+  def fetch_spec(mod, fun, arity) do
+    with {:ok, core} <- mod |> :code.which() |> :dialyzer_utils.get_core_from_beam(),
+         {:ok, rec_dict} <- :dialyzer_utils.get_record_and_type_info(core),
+         {:ok, spec_info, %{}} <- :dialyzer_utils.get_spec_info(mod, core, rec_dict),
+         {:ok, {{_file, _line}, {_tmp_contract, [_fun], type}, []}} <-
+           fetch_spec_info(spec_info, {mod, fun, arity}),
+         do: {:ok, type_to_string(fun, type)}
+  end
+
+  defp fetch_spec_info(spec_info, {mod, fun, arity}) do
+    with :error <- Map.fetch(spec_info, {mod, fun, arity}), do: {:error, :no_mfa_info}
+  end
+
+  defp type_to_quoted(fun, type) do
+    for {{:type, _, _, _} = type, _} <- type do
+      Code.Typespec.spec_to_quoted(fun, type)
+    end
+  end
+
+  defp type_to_string(fun, type) do
+    fun
+    |> type_to_quoted(type)
+    |> Enum.map_join(" ", &Macro.to_string/1)
+  end
 end
